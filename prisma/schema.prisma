@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = "mysql://root:root@localhost:3306/NoteHiveDB"
+}
+
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  notes     Note[]
+  createdAt DateTime @default(now())
+}
+
+model Note {
+  id      Int    @id @default(autoincrement())
+  title   String @db.VarChar(255)
+  content String @db.Text
+
+  ownerId Int
+  owner   User @relation(fields: [ownerId], references: [id])
+
+  outgoingLinks NoteLink[] @relation("FromNote")
+  incomingLinks NoteLink[] @relation("ToNote")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NoteLink {
+  id Int @id @default(autoincrement())
+
+  fromNoteId Int
+  toNoteId   Int
+
+  fromNote Note @relation("FromNote", fields: [fromNoteId], references: [id])
+  toNote   Note @relation("ToNote", fields: [toNoteId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([fromNoteId, toNoteId])
+}
