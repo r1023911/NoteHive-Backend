@@ -10,11 +10,13 @@ datasource db {
 
 model User {
   id        Int      @id @default(autoincrement())
+  username  String @unique @db.VarChar(50)
   email     String   @unique @db.VarChar(255)
   password  String   @db.VarChar(255)
   notes     Note[]
   createdAt DateTime @default(now())
 }
+
 
 model Note {
   id      Int    @id @default(autoincrement())
