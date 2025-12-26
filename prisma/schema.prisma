@@ -7,42 +7,58 @@ datasource db {
   url      = "mysql://root:root@localhost:3306/NoteHiveDB"
 }
 
+model user {
+  id                   Int      @id @default(autoincrement())
+  username             String
+  email                String   @unique(map: "User_email_key")
+  password             String
+  createdAt            DateTime @default(now())
+  emailVerifyCodeHash  String?
+  emailVerifyExpiresAt DateTime?
+  isVerified           Boolean  @default(false)
 
-model User {
+  vaults Vault[]
+  notes  note[]
+}
+
+model Vault {
   id        Int      @id @default(autoincrement())
-  username  String @unique @db.VarChar(50)
-  email     String   @unique @db.VarChar(255)
-  password  String   @db.VarChar(255)
-  notes     Note[]
+  name      String   @db.VarChar(120)
+  ownerId   Int
   createdAt DateTime @default(now())
+
+  owner user  @relation(fields: [ownerId], references: [id], onDelete: Cascade, map: "fk_vault_owner_user")
+  notes note[]
+
+  @@index([ownerId])
+  @@unique([ownerId, name])
 }
 
-
-model Note {
-  id      Int    @id @default(autoincrement())
-  title   String @db.VarChar(255)
-  content String @db.Text
-
-  ownerId Int
-  owner   User @relation(fields: [ownerId], references: [id])
-
-  outgoingLinks NoteLink[] @relation("FromNote")
-  incomingLinks NoteLink[] @relation("ToNote")
-
+model note {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.VarChar(255)
+  content   String   @db.Text
+  ownerId   Int
+  vaultId   Int?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime
+
+  hexKey String?
+
+
+  owner user   @relation(fields: [ownerId], references: [id], onDelete: Cascade, map: "fk_note_owner_user")
+  vault Vault? @relation(fields: [vaultId], references: [id], onDelete: Cascade, map: "fk_note_vault_vault")
+
+  @@index([ownerId], map: "idx_note_ownerId")
+  @@index([vaultId], map: "idx_note_vaultId")
 }
 
-model NoteLink {
-  id Int @id @default(autoincrement())
-
+model notelink {
+  id         Int      @id @default(autoincrement())
   fromNoteId Int
   toNoteId   Int
+  createdAt  DateTime @default(now())
 
-  fromNote Note @relation("FromNote", fields: [fromNoteId], references: [id])
-  toNote   Note @relation("ToNote", fields: [toNoteId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@unique([fromNoteId, toNoteId])
+  @@unique([fromNoteId, toNoteId], map: "NoteLink_fromNoteId_toNoteId_key")
+  @@index([toNoteId], map: "NoteLink_toNoteId_fkey")
 }
