@@ -5,6 +5,27 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { getUserId } = require("../middleware/auth");
 
+async function notifyShareWebhook(payload) {
+  const url = process.env.N8N_SHARE_WEBHOOK_URL;
+  if (!url) return;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    console.log("N8N share webhook failed:", err.message);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 router.post("/", async (req, res) => {
   try {
     const userId = getUserId(req);
@@ -28,8 +49,23 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "cannot share a note with yourself" });
     }
 
+    const fromUser = await prisma.user.findUnique({
+      where: { id: Number(userId) },
+      select: { username: true, email: true },
+    });
+
     const share = await prisma.share.create({
       data: { noteId: note.id, fromUserId: Number(userId), toUserId: toUser.id },
+    });
+
+    await notifyShareWebhook({
+      noteId: note.id,
+      noteTitle: note.title,
+      toEmail: toUser.email,
+      toUsername: toUser.username,
+      fromUsername: fromUser?.username || null,
+      fromEmail: fromUser?.email || null,
+      sharedAt: share.createdAt,
     });
 
     res.status(201).json(share);
