@@ -14,7 +14,7 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    const link = await prisma.noteLink.create({
+    const link = await prisma.notelink.create({
       data: {
         fromNoteId: Number(fromNoteId),
         toNoteId: Number(toNoteId),
@@ -29,7 +29,7 @@ router.post("/", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const links = await prisma.noteLink.findMany({
+    const links = await prisma.notelink.findMany({
       orderBy: { id: "desc" },
     });
     res.json(links);
@@ -48,7 +48,7 @@ router.delete("/", async (req, res) => {
       return;
     }
 
-    await prisma.noteLink.delete({
+    await prisma.notelink.delete({
       where: {
         fromNoteId_toNoteId: {
           fromNoteId: Number(fromNoteId),

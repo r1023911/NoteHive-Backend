@@ -220,16 +220,36 @@ router.put("/:id/password", async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!id) return res.status(400).json({ error: "Invalid id" });
-    if (!currentPassword)
-      return res.status(400).json({ error: "currentPassword required" });
     if (!newPassword || String(newPassword).length < 8)
       return res.status(400).json({ error: "newPassword too short" });
+
+    const auth = String(req.headers.authorization || "");
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+
+    let payload = null;
+    try {
+      payload = token ? jwt.verify(token, JWT_SECRET) : null;
+    } catch {
+      payload = null;
+    }
+
+    if (!payload) return res.status(401).json({ error: "unauthorized" });
+
+    const isAdmin = payload.role === "admin";
+    if (!isAdmin && payload.userId !== id) {
+      return res.status(403).json({ error: "forbidden" });
+    }
 
     const u = await prisma.user.findUnique({ where: { id } });
     if (!u) return res.status(404).json({ error: "User not found" });
 
-    const ok = await bcrypt.compare(String(currentPassword), u.password);
-    if (!ok) return res.status(401).json({ error: "Wrong password" });
+    if (!isAdmin) {
+      if (!currentPassword)
+        return res.status(400).json({ error: "currentPassword required" });
+
+      const ok = await bcrypt.compare(String(currentPassword), u.password);
+      if (!ok) return res.status(401).json({ error: "Wrong password" });
+    }
 
     const hashed = await bcrypt.hash(String(newPassword), 10);
 

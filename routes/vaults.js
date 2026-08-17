@@ -1,22 +1,9 @@
 const express = require("express");
 const router = express.Router();
 
-const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-
-function getUserId(req) {
-  const header = req.headers.authorization || "";
-  const token = header.split(" ")[1];
-  if (!token) return null;
-
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || "dev-secret-change-me");
-    return payload.userId;
-  } catch {
-    return null;
-  }
-}
+const { getUserId } = require("../middleware/auth");
 
 router.get("/", async (req, res) => {
   try {

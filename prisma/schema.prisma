@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://root:root@localhost:3306/NoteHiveDB"
+  url      = env("DATABASE_URL")
 }
 
 model user {
@@ -17,11 +17,13 @@ model user {
   emailVerifyExpiresAt DateTime?
   isVerified           Boolean  @default(false)
 
-  vaults Vault[]
-  notes  note[]
+  vaults         vault[]
+  notes          note[]
+  sharesSent     share[] @relation("ShareFrom")
+  sharesReceived share[] @relation("ShareTo")
 }
 
-model Vault {
+model vault {
   id        Int      @id @default(autoincrement())
   name      String   @db.VarChar(120)
   ownerId   Int
@@ -44,13 +46,32 @@ model note {
   updatedAt DateTime
 
   hexKey String?
+  color  String? @db.VarChar(20)
 
-
-  owner user   @relation(fields: [ownerId], references: [id], onDelete: Cascade, map: "fk_note_owner_user")
-  vault Vault? @relation(fields: [vaultId], references: [id], onDelete: Cascade, map: "fk_note_vault_vault")
+  owner         user       @relation(fields: [ownerId], references: [id], onDelete: Cascade, map: "fk_note_owner_user")
+  vault         vault?     @relation(fields: [vaultId], references: [id], onDelete: Cascade, map: "fk_note_vault_vault")
+  shares        share[]
+  outgoingLinks notelink[] @relation("NoteLinkFrom")
+  incomingLinks notelink[] @relation("NoteLinkTo")
 
   @@index([ownerId], map: "idx_note_ownerId")
   @@index([vaultId], map: "idx_note_vaultId")
+}
+
+model share {
+  id         Int      @id @default(autoincrement())
+  noteId     Int
+  fromUserId Int
+  toUserId   Int
+  createdAt  DateTime @default(now())
+
+  note     note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  fromUser user @relation("ShareFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   user @relation("ShareTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, toUserId])
+  @@index([toUserId])
+  @@index([fromUserId])
 }
 
 model notelink {
@@ -58,6 +79,9 @@ model notelink {
   fromNoteId Int
   toNoteId   Int
   createdAt  DateTime @default(now())
+
+  fromNote note @relation("NoteLinkFrom", fields: [fromNoteId], references: [id], onDelete: Cascade)
+  toNote   note @relation("NoteLinkTo", fields: [toNoteId], references: [id], onDelete: Cascade)
 
   @@unique([fromNoteId, toNoteId], map: "NoteLink_fromNoteId_toNoteId_key")
   @@index([toNoteId], map: "NoteLink_toNoteId_fkey")

@@ -1,29 +1,16 @@
 const express = require("express");
 const router = express.Router();
 
-const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-
-function getUserId(req) {
-  const header = req.headers.authorization || "";
-  const token = header.split(" ")[1];
-  if (!token) return null;
-
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || "dev-secret-change-me");
-    return payload.userId;
-  } catch {
-    return null;
-  }
-}
+const { getUserId } = require("../middleware/auth");
 
 router.post("/", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "unauthorized" });
 
-    const { title, content, vaultId, hexKey } = req.body;
+    const { title, content, vaultId, hexKey, color } = req.body;
 
     if (!title || !vaultId) {
       return res.status(400).json({ error: "title and vaultId required" });
@@ -36,6 +23,7 @@ router.post("/", async (req, res) => {
         ownerId: Number(userId),
         vaultId: Number(vaultId),
         hexKey: hexKey ? String(hexKey) : null,
+        color: color ? String(color) : null,
         updatedAt: new Date(),
       },
     });
@@ -104,7 +92,7 @@ router.put("/:id", async (req, res) => {
     if (!userId) return res.status(401).json({ error: "unauthorized" });
 
     const id = Number(req.params.id);
-    const { title, content, vaultId, hexKey } = req.body;
+    const { title, content, vaultId, hexKey, color } = req.body;
 
     if (!title) return res.status(400).json({ error: "title required" });
 
@@ -119,6 +107,7 @@ router.put("/:id", async (req, res) => {
         content: String(content || ""),
         vaultId: vaultId ? Number(vaultId) : undefined,
         hexKey: typeof hexKey === "string" ? hexKey : undefined,
+        color: typeof color === "string" ? color : undefined,
         updatedAt: new Date(),
       },
     });
